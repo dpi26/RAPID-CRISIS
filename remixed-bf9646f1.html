@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Crisis Response Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #FF2626;
+    --red-dim: #991A1A;
+    --amber: #FF8C00;
+    --green: #00FF88;
+    --blue: #00C8FF;
+    --dark: #080B10;
+    --dark2: #0D1117;
+    --panel: #111820;
+    --panel2: #161E28;
+    --border: #1E2D3D;
+    --text: #C8D8E8;
+    --text-dim: #5A7A90;
+    --white: #F0F8FF;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scan line animation */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -100%; left: 0; right: 0;
+    height: 200px;
+    background: linear-gradient(transparent, rgba(0,200,255,0.02), transparent);
+    animation: scan 6s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes scan { to { top: 110%; } }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes pulse-red {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,38,38,0); }
+    50% { box-shadow: 0 0 0 8px rgba(255,38,38,0.15); }
+  }
+  @keyframes pulse-green {
+    0%,100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+    50% { box-shadow: 0 0 0 6px rgba(0,255,136,0.15); }
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes fadeUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes ripple {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes countUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* TOP BAR */
+  .topbar {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    background: rgba(13,17,23,0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--red);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-weight: 900; font-size: 14px;
+    color: white;
+    animation: pulse-red 2s ease infinite;
+    position: relative;
+  }
+  .logo-mark::after {
+    content: '✕';
+    position: absolute;
+  }
+  .logo-text {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900; font-size: 20px;
+    letter-spacing: 0.15em;
+    color: var(--white);
+  }
+  .logo-sub {
+    font-size: 9px; letter-spacing: 0.3em;
+    color: var(--text-dim); margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  .topbar-center {
+    display: flex; align-items: center; gap: 20px;
+  }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid;
+    font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .status-badge.active {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(255,38,38,0.08);
+  }
+  .status-badge.standby {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,255,136,0.06);
+  }
+  .status-badge .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    animation: blink 1s ease infinite;
+    position: relative;
+  }
+  .status-badge.active .dot { background: var(--red); }
+  .status-badge.standby .dot { background: var(--green); animation-duration: 2.5s; }
+  .status-badge .dot::after {
+    content: ''; position: absolute; inset: -3px;
+    border-radius: 50%; border: 1px solid currentColor;
+    animation: ripple 1.5s ease infinite;
+  }
+
+  .time-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px; letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .topbar-right {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .venue-selector {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 11px; padding: 7px 12px; cursor: pointer;
+    letter-spacing: 0.05em; outline: none;
+  }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; transition: all 0.2s;
+  }
+  .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .icon-btn.alert { border-color: var(--red); color: var(--red); animation: pulse-red 1.5s infinite; }
+
+  /* MAIN LAYOUT */
+  .main {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    grid-template-rows: auto 1fr;
+    height: calc(100vh - 65px);
+  }
+
+  /* ALERT TICKER */
+  .ticker-bar {
+    grid-column: 1 / -1;
+    background: rgba(255,38,38,0.08);
+    border-bottom: 1px solid rgba(255,38,38,0.3);
+    padding: 8px 24px;
+    display: flex; align-items: center; gap: 16px;
+    overflow: hidden;
+  }
+  .ticker-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px; font-weight: 700;
+    color: var(--red); letter-spacing: 0.3em;
+    white-space: nowrap;
+    padding: 3px 8px;
+    border: 1px solid var(--red);
+    background: rgba(255,38,38,0.15);
+  }
+  .ticker-content {
+    font-size: 11px; color: var(--amber);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    flex: 1;
+  }
+  .ticker-scroll {
+    display: inline-block;
+    animation: tickerMove 25s linear infinite;
+  }
+  @keyframes tickerMove {
+    from { transform: translateX(100%); }
+    to { transform: translateX(-100%); }
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    background: var(--dark2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 16px;
+  }
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title span { color: var(--blue); font-family: 'Orbitron',monospace; font-size: 9px; }
+
+  /* INCIDENT CARDS */
+  .incident-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: fadeUp 0.3s ease both;
+  }
+  .incident-card:hover { background: var(--panel2); }
+  .incident-card.critical { border-left-color: var(--red); }
+  .incident-card.high { border-left-color: var(--amber); }
+  .incident-card.medium { border-left-color: #FFD700; }
+  .incident-card.low { border-left-color: var(--green); }
+  .incident-card.active-selected { 
+    background: rgba(255,38,38,0.08);
+    border-color: rgba(255,38,38,0.4);
+    border-left-color: var(--red);
+  }
+
+  .inc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .inc-id {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px; font-weight: 700;
+    color: var(--text-dim); letter-spacing: 0.1em;
+  }
+  .inc-time {
+    font-size: 9px; color: var(--text-dim);
+  }
+  .inc-type {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 12px;
+    color: var(--white); margin-bottom: 3px;
+  }
+  .inc-location {
+    font-size: 10px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .inc-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 8px;
+  }
+  .severity-badge {
+    font-size: 9px; letter-spacing: 0.15em;
+    padding: 2px 7px; text-transform: uppercase; font-weight: 600;
+  }
+  .critical .severity-badge { background: rgba(255,38,38,0.2); color: var(--red); border: 1px solid rgba(255,38,38,0.4); }
+  .high .severity-badge { background: rgba(255,140,0,0.15); color: var(--amber); border: 1px solid rgba(255,140,0,0.35); }
+  .medium .severity-badge { background: rgba(255,215,0,0.1); color: #FFD700; border: 1px solid rgba(255,215,0,0.3); }
+  .low .severity-badge { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+  .inc-responders {
+    font-size: 10px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* UNIT STATUS */
+  .unit-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(30,45,61,0.5);
+  }
+  .unit-row:last-child { border-bottom: none; }
+  .unit-info { display: flex; align-items: center; gap: 10px; }
+  .unit-avatar {
+    width: 30px; height: 30px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    position: relative;
+  }
+  .unit-status-dot {
+    position: absolute; bottom: -2px; right: -2px;
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1px solid var(--dark2);
+  }
+  .on-scene { background: var(--red); }
+  .en-route { background: var(--amber); animation: blink 0.8s infinite; }
+  .standby { background: var(--green); }
+  .unit-name { font-size: 11px; color: var(--white); font-weight: 500; }
+  .unit-role { font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; }
+  .unit-loc { font-size: 9px; color: var(--blue); }
+
+  /* CENTER — MAP + COMMAND */
+  .center-panel {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* COMMAND TOOLBAR */
+  .cmd-toolbar {
+    background: var(--dark2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .cmd-btn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .cmd-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .cmd-btn.danger { border-color: rgba(255,38,38,0.4); color: var(--red); background: rgba(255,38,38,0.05); }
+  .cmd-btn.danger:hover { background: rgba(255,38,38,0.12); }
+  .cmd-btn.primary { 
+    background: var(--red); border-color: var(--red); 
+    color: white; font-weight: 600; 
+    animation: pulse-red 2s infinite;
+  }
+  .cmd-btn.primary:hover { background: #cc1f1f; }
+
+  .cmd-sep { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
+
+  /* FLOOR MAP */
+  .map-container {
+    flex: 1; position: relative; overflow: hidden;
+    background: #080D14;
+  }
+
+  .map-svg { width: 100%; height: 100%; }
+
+  /* Floor rooms */
+  .room { fill: #0D1A26; stroke: #1E3448; stroke-width: 1; cursor: pointer; transition: fill 0.2s; }
+  .room:hover { fill: #122233; }
+  .room.incident-active { fill: rgba(255,38,38,0.12); stroke: var(--red); stroke-width: 1.5; }
+  .room.has-unit { fill: rgba(0,200,255,0.06); stroke: #00506A; }
+  .room-label { fill: #3A5A70; font-family: 'DM Mono'; font-size: 9px; text-anchor: middle; }
+  .room-label.active { fill: var(--red); }
+
+  /* Incident marker */
+  .inc-marker { cursor: pointer; }
+  .inc-pulse {
+    transform-origin: center;
+    animation: ripple 1.5s ease infinite;
+  }
+  .unit-dot { cursor: pointer; transition: all 0.2s; }
+
+  /* BROADCAST OVERLAY */
+  .broadcast-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(8,11,16,0.9));
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .broadcast-input {
+    flex: 1;
+    background: rgba(13,17,23,0.8);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; padding: 9px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    backdrop-filter: blur(4px);
+  }
+  .broadcast-input:focus { border-color: var(--blue); }
+  .broadcast-send {
+    padding: 9px 20px;
+    background: var(--blue); border: none;
+    color: var(--dark); font-family: 'DM Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .broadcast-send:hover { background: #00a8d6; }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    background: var(--dark2);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* LIVE FEED */
+  .feed-container {
+    flex: 1; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    padding: 16px;
+  }
+
+  .feed-item {
+    display: flex; gap: 10px;
+    margin-bottom: 14px;
+    animation: fadeUp 0.3s ease both;
+  }
+  .feed-item:nth-child(1) { animation-delay: 0.05s; }
+  .feed-item:nth-child(2) { animation-delay: 0.1s; }
+
+  .feed-icon {
+    width: 28px; height: 28px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    margin-top: 1px;
+  }
+  .feed-icon.sos { border-color: rgba(255,38,38,0.5); background: rgba(255,38,38,0.1); }
+  .feed-icon.dispatch { border-color: rgba(0,200,255,0.4); background: rgba(0,200,255,0.06); }
+  .feed-icon.update { border-color: rgba(255,140,0,0.4); background: rgba(255,140,0,0.06); }
+  .feed-icon.resolved { border-color: rgba(0,255,136,0.4); background: rgba(0,255,136,0.06); }
+
+  .feed-body { flex: 1; }
+  .feed-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  .feed-who { font-size: 11px; color: var(--white); font-weight: 500; }
+  .feed-when { font-size: 9px; color: var(--text-dim); }
+  .feed-msg { font-size: 11px; color: var(--text); line-height: 1.5; }
+  .feed-tag {
+    display: inline-block; font-size: 9px;
+    padding: 1px 6px; margin-top: 5px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .tag-critical { background: rgba(255,38,38,0.15); color: var(--red); }
+  .tag-dispatch { background: rgba(0,200,255,0.1); color: var(--blue); }
+  .tag-update { background: rgba(255,140,0,0.1); color: var(--amber); }
+  .tag-resolved { background: rgba(0,255,136,0.1); color: var(--green); }
+
+  /* RESPONDER QUICK ACTIONS */
+  .quick-actions {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .qa-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-top: 10px;
+  }
+
+  .qa-btn {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 5px;
+    padding: 10px 8px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .qa-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .qa-btn .icon { font-size: 18px; }
+  .qa-btn.sos-btn {
+    background: rgba(255,38,38,0.1);
+    border-color: rgba(255,38,38,0.4);
+    color: var(--red);
+    grid-column: 1 / -1;
+    flex-direction: row; gap: 10px;
+    padding: 12px;
+    font-size: 11px; font-family: 'Syne', sans-serif;
+    font-weight: 800; letter-spacing: 0.2em;
+    animation: pulse-red 2.5s infinite;
+  }
+  .qa-btn.sos-btn:hover { background: rgba(255,38,38,0.2); }
+
+  /* STATS BAR */
+  .stats-bar {
+    grid-column: 1 / -1;
+    background: var(--dark2);
+    border-top: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 32px;
+    position: relative; z-index: 5;
+  }
+  .stat-item { display: flex; align-items: center; gap: 10px; }
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px; font-weight: 700;
+    animation: countUp 0.4s ease;
+  }
+  .stat-value.red { color: var(--red); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-value.green { color: var(--green); }
+  .stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.2em; line-height: 1.4; }
+
+  .stat-sep { width: 1px; height: 30px; background: var(--border); }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    width: 560px; max-width: 95vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,38,38,0.2);
+    animation: fadeUp 0.3s ease;
+  }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .modal-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px; font-weight: 700;
+    color: var(--white); letter-spacing: 0.1em;
+  }
+  .modal-close {
+    background: none; border: none;
+    color: var(--text-dim); cursor: pointer;
+    font-size: 18px; line-height: 1;
+    transition: color 0.2s;
+  }
+  .modal-close:hover { color: var(--white); }
+  .modal-body { padding: 20px; }
+
+  .form-row { margin-bottom: 16px; }
+  .form-label {
+    display: block; font-size: 10px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; padding: 9px 12px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--blue); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .btn { 
+    padding: 9px 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--panel); color: var(--text);
+    transition: all 0.2s;
+  }
+  .btn:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-primary {
+    background: var(--red); border-color: var(--red);
+    color: white; font-weight: 600;
+  }
+  .btn-primary:hover { background: #cc1f1f; border-color: #cc1f1f; }
+
+  /* NOTIFICATION TOAST */
+  .toast-stack {
+    position: fixed; bottom: 80px; right: 20px;
+    z-index: 200; display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--panel2);
+    border: 1px solid;
+    padding: 10px 16px;
+    min-width: 280px; max-width: 340px;
+    animation: slideIn 0.3s ease;
+    pointer-events: all;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .toast.critical { border-color: rgba(255,38,38,0.5); }
+  .toast.info { border-color: rgba(0,200,255,0.4); }
+  .toast.success { border-color: rgba(0,255,136,0.4); }
+  .toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .toast-content { flex: 1; }
+  .toast-title { font-size: 11px; font-weight: 600; color: var(--white); margin-bottom: 3px; }
+  .toast-msg { font-size: 10px; color: var(--text); line-height: 1.4; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .left-panel, .right-panel { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div>
+      <div class="logo-text">NEXUS</div>
+      <div class="logo-sub">Crisis Response Platform</div>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <div class="status-badge active" id="systemStatus">
+      <div class="dot"></div>
+      <span>2 ACTIVE INCIDENTS</span>
+    </div>
+    <div class="time-display" id="clock">--:--:--</div>
+  </div>
+  <div class="topbar-right">
+    <select class="venue-selector">
+      <option>🏨 Grand Meridian Hotel — All Floors</option>
+      <option>Floor 1 — Lobby & Conference</option>
+      <option>Floor 2 — Ballroom & Banquet</option>
+      <option>Floor 3-8 — Guest Rooms</option>
+      <option>Floor 9 — Executive Suites</option>
+    </select>
+    <button class="icon-btn alert" title="2 critical alerts" onclick="openModal('sos')">🔔</button>
+    <button class="icon-btn" title="Settings">⚙</button>
+  </div>
+</div>
+
+<!-- ALERT TICKER -->
+<div style="position:relative;z-index:5">
+  <div class="ticker-bar">
+    <div class="ticker-label">LIVE FEED</div>
+    <div class="ticker-content">
+      <span class="ticker-scroll">
+        🔴 INC-0047 · MEDICAL · Floor 7, Room 714 · CRITICAL · EMS Dispatched — 2 mins ago &nbsp;&nbsp;&nbsp;
+        🟠 INC-0046 · FIRE ALARM · Floor 3 West Wing · HIGH · Fire Team En Route — 5 mins ago &nbsp;&nbsp;&nbsp;
+        🟡 INC-0045 · SECURITY · Lobby Main Entrance · MEDIUM · Guard Notified — 12 mins ago &nbsp;&nbsp;&nbsp;
+        ✅ INC-0044 · MEDICAL · Pool Deck · RESOLVED · Guest Assisted — 28 mins ago &nbsp;&nbsp;&nbsp;
+        🔴 INC-0047 · MEDICAL · Floor 7, Room 714 · CRITICAL · EMS Dispatched — 2 mins ago &nbsp;&nbsp;&nbsp;
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <!-- Active Incidents -->
+    <div class="panel-section">
+      <div class="panel-title">Active Incidents <span id="incCount">2</span></div>
+
+      <div class="incident-card critical active-selected" onclick="selectIncident(0)">
+        <div class="inc-header">
+          <span class="inc-id">INC-0047</span>
+          <span class="inc-time">02:14 ago</span>
+        </div>
+        <div class="inc-type">🚑 Medical Emergency</div>
+        <div class="inc-location">📍 Floor 7 · Room 714</div>
+        <div class="inc-footer">
+          <span class="severity-badge">Critical</span>
+          <span class="inc-responders">👥 3 responding</span>
+        </div>
+      </div>
+
+      <div class="incident-card high" onclick="selectIncident(1)">
+        <div class="inc-header">
+          <span class="inc-id">INC-0046</span>
+          <span class="inc-time">05:30 ago</span>
+        </div>
+        <div class="inc-type">🔥 Fire Alarm Triggered</div>
+        <div class="inc-location">📍 Floor 3 · West Wing</div>
+        <div class="inc-footer">
+          <span class="severity-badge">High</span>
+          <span class="inc-responders">👥 2 responding</span>
+        </div>
+      </div>
+
+      <div class="incident-card medium" onclick="selectIncident(2)">
+        <div class="inc-header">
+          <span class="inc-id">INC-0045</span>
+          <span class="inc-time">12:48 ago</span>
+        </div>
+        <div class="inc-type">🔒 Security Breach</div>
+        <div class="inc-location">📍 Lobby · Main Entrance</div>
+        <div class="inc-footer">
+          <span class="severity-badge">Medium</span>
+          <span class="inc-responders">👥 1 responding</span>
+        </div>
+      </div>
+
+      <button class="cmd-btn" style="width:100%;margin-top:8px;justify-content:center" onclick="openModal('report')">
+        ＋ REPORT NEW INCIDENT
+      </button>
+    </div>
+
+    <!-- Responder Units -->
+    <div class="panel-section">
+      <div class="panel-title">Responder Units <span>8 ACTIVE</span></div>
+
+      <div class="unit-row">
+        <div class="unit-info">
+          <div class="unit-avatar">🧑‍⚕️<div class="unit-status-dot on-scene"></div></div>
+          <div>
+            <div class="unit-name">Medic Unit 1</div>
+            <div class="unit-role">PARAMEDIC TEAM</div>
+          </div>
+        </div>
+        <div class="unit-loc">Floor 7</div>
+      </div>
+      <div class="unit-row">
+        <div class="unit-info">
+          <div class="unit-avatar">🚒<div class="unit-status-dot en-route"></div></div>
+          <div>
+            <div class="unit-name">Fire Team Alpha</div>
+            <div class="unit-role">FIRE SAFETY</div>
+          </div>
+        </div>
+        <div class="unit-loc">En Route F3</div>
+      </div>
+      <div class="unit-row">
+        <div class="unit-info">
+          <div class="unit-avatar">👮<div class="unit-status-dot on-scene"></div></div>
+          <div>
+            <div class="unit-name">Security Sgt. K</div>
+            <div class="unit-role">SECURITY</div>
+          </div>
+        </div>
+        <div class="unit-loc">Lobby</div>
+      </div>
+      <div class="unit-row">
+        <div class="unit-info">
+          <div class="unit-avatar">🏥<div class="unit-status-dot standby"></div></div>
+          <div>
+            <div class="unit-name">Medic Unit 2</div>
+            <div class="unit-role">STANDBY</div>
+          </div>
+        </div>
+        <div class="unit-loc">Station B</div>
+      </div>
+      <div class="unit-row">
+        <div class="unit-info">
+          <div class="unit-avatar">👮<div class="unit-status-dot standby"></div></div>
+          <div>
+            <div class="unit-name">Security Officer L</div>
+            <div class="unit-role">PATROL</div>
+          </div>
+        </div>
+        <div class="unit-loc">Floor 4</div>
+      </div>
+    </div>
+
+    <!-- External Services -->
+    <div class="panel-section">
+      <div class="panel-title">External Services</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">
+          <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--red)">🚑</span> City EMS</span>
+          <span style="color:var(--amber);font-size:9px;letter-spacing:0.1em">EN ROUTE · 4 MIN</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">
+          <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--amber)">🚒</span> Fire Dept #7</span>
+          <span style="color:var(--text-dim);font-size:9px;letter-spacing:0.1em">ALERTED</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">
+          <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--blue)">🚔</span> Metro Police</span>
+          <span style="color:var(--green);font-size:9px;letter-spacing:0.1em">STANDBY</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER PANEL -->
+  <div class="center-panel">
+
+    <!-- CMD Toolbar -->
+    <div class="cmd-toolbar">
+      <button class="cmd-btn primary" onclick="openModal('report')">🆘 NEW INCIDENT</button>
+      <div class="cmd-sep"></div>
+      <button class="cmd-btn" onclick="openModal('broadcast')">📢 BROADCAST</button>
+      <button class="cmd-btn" onclick="openModal('dispatch')">🚀 DISPATCH UNIT</button>
+      <button class="cmd-btn" onclick="openModal('evacuate')">🚪 EVACUATE ZONE</button>
+      <div class="cmd-sep"></div>
+      <button class="cmd-btn danger" onclick="openModal('lockdown')">🔒 LOCKDOWN</button>
+    </div>
+
+    <!-- Floor Map -->
+    <div class="map-container">
+      <svg class="map-svg" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+        <!-- Floor outline -->
+        <rect x="30" y="30" width="740" height="440" fill="#08111A" stroke="#1A2D40" stroke-width="1.5"/>
+
+        <!-- Corridor H -->
+        <rect x="30" y="230" width="740" height="40" fill="#0A1520" stroke="#152535" stroke-width="0.5"/>
+        <!-- Corridor V -->
+        <rect x="390" y="30" width="40" height="440" fill="#0A1520" stroke="#152535" stroke-width="0.5"/>
+
+        <!-- Room grid — Left top -->
+        <rect class="room" x="50" y="50" width="100" height="75" rx="1"/>
+        <text class="room-label" x="100" y="92">ROOM 101</text>
+        <rect class="room" x="160" y="50" width="100" height="75" rx="1"/>
+        <text class="room-label" x="210" y="92">ROOM 102</text>
+        <rect class="room" x="270" y="50" width="100" height="75" rx="1"/>
+        <text class="room-label" x="320" y="92">ROOM 103</text>
+
+        <rect class="room" x="50" y="135" width="100" height="75" rx="1"/>
+        <text class="room-label" x="100" y="177">ROOM 104</text>
+        <rect class="room" x="160" y="135" width="100" height="75" rx="1"/>
+        <text class="room-label" x="210" y="177">ROOM 105</text>
+        <rect class="room has-unit" x="270" y="135" width="100" height="75" rx="1"/>
+        <text class="room-label" x="320" y="177">CONF. A</text>
+
+        <!-- Room grid — Right top -->
+        <rect class="room" x="440" y="50" width="100" height="75" rx="1"/>
+        <text class="room-label" x="490" y="92">ROOM 201</text>
+        <rect class="room" x="550" y="50" width="100" height="75" rx="1"/>
+        <text class="room-label" x="600" y="92">ROOM 202</text>
+        <rect class="room" x="660" y="50" width="100" height="75" rx="1"/>
+        <text class="room-label" x="710" y="92">ROOM 203</text>
+
+        <rect class="room" x="440" y="135" width="100" height="75" rx="1"/>
+        <text class="room-label" x="490" y="177">ROOM 204</text>
+        <rect class="room" x="550" y="135" width="100" height="75" rx="1"/>
+        <text class="room-label" x="600" y="177">ROOM 205</text>
+        <rect class="room" x="660" y="135" width="100" height="75" rx="1"/>
+        <text class="room-label" x="710" y="177">ROOM 206</text>
+
+        <!-- Room grid — Left bottom -->
+        <rect class="room has-unit" x="50" y="280" width="100" height="75" rx="1"/>
+        <text class="room-label" x="100" y="322">BALLROOM</text>
+        <rect class="room" x="160" y="280" width="100" height="75" rx="1"/>
+        <text class="room-label" x="210" y="322">ROOM 301</text>
+        <rect class="room" x="270" y="280" width="100" height="75" rx="1"/>
+        <text class="room-label" x="320" y="322">ROOM 302</text>
+
+        <rect class="room" x="50" y="365" width="100" height="85" rx="1"/>
+        <text class="room-label" x="100" y="413">KITCHEN</text>
+        <rect class="room" x="160" y="365" width="100" height="85" rx="1"/>
+        <text class="room-label" x="210" y="413">RESTAURANT</text>
+        <rect class="room" x="270" y="365" width="100" height="85" rx="1"/>
+        <text class="room-label" x="320" y="413">ROOM 303</text>
+
+        <!-- Room grid — Right bottom -->
+        <rect class="room incident-active" x="440" y="280" width="100" height="75" rx="1"/>
+        <text class="room-label active" x="490" y="322">ROOM 714 ⚠</text>
+        <rect class="room" x="550" y="280" width="100" height="75" rx="1"/>
+        <text class="room-label" x="600" y="322">ROOM 304</text>
+        <rect class="room" x="660" y="280" width="100" height="75" rx="1"/>
+        <text class="room-label" x="710" y="322">ROOM 305</text>
+
+        <rect class="room" x="440" y="365" width="100" height="85" rx="1"/>
+        <text class="room-label" x="490" y="413">FITNESS</text>
+        <rect class="room" x="550" y="365" width="100" height="85" rx="1"/>
+        <text class="room-label" x="600" y="413">SPA</text>
+        <rect class="room" x="660" y="365" width="100" height="85" rx="1"/>
+        <text class="room-label" x="710" y="413">POOL DECK</text>
+
+        <!-- Elevator shaft -->
+        <rect x="370" y="235" width="60" height="30" fill="#0D1A26" stroke="#1E3448" stroke-width="1"/>
+        <text fill="#2A4A60" font-family="DM Mono" font-size="8" text-anchor="middle" x="400" y="254">LIFT</text>
+
+        <!-- INCIDENT MARKER — CRITICAL -->
+        <g class="inc-marker" onclick="openModal('incident_detail')" transform="translate(490, 285)">
+          <circle class="inc-pulse" cx="0" cy="0" r="20" fill="none" stroke="rgba(255,38,38,0.4)" stroke-width="1"/>
+          <circle cx="0" cy="0" r="12" fill="rgba(255,38,38,0.2)" stroke="var(--red)" stroke-width="1.5"/>
+          <text text-anchor="middle" y="5" fill="var(--red)" font-family="Orbitron" font-size="10" font-weight="bold">!</text>
+        </g>
+
+        <!-- UNIT DOTS -->
+        <g class="unit-dot" title="Medic Unit 1">
+          <circle cx="490" cy="295" r="6" fill="rgba(0,200,255,0.9)" stroke="#fff" stroke-width="1"/>
+          <text text-anchor="middle" y="299" x="490" fill="white" font-size="7">M</text>
+        </g>
+        <g class="unit-dot" title="Security">
+          <circle cx="110" cy="295" r="6" fill="rgba(255,215,0,0.9)" stroke="#fff" stroke-width="1"/>
+          <text text-anchor="middle" y="299" x="110" fill="black" font-size="7">S</text>
+        </g>
+        <g class="unit-dot" title="Fire Team">
+          <circle cx="320" cy="160" r="6" fill="rgba(255,140,0,0.9)" stroke="#fff" stroke-width="1"/>
+          <text text-anchor="middle" y="164" x="320" fill="white" font-size="7">F</text>
+        </g>
+
+        <!-- Exit markers -->
+        <g>
+          <rect x="30" y="238" width="20" height="24" fill="rgba(0,255,136,0.15)" stroke="var(--green)" stroke-width="1"/>
+          <text fill="var(--green)" font-size="7" font-family="DM Mono" x="36" y="253">EXIT</text>
+        </g>
+        <g>
+          <rect x="750" y="238" width="20" height="24" fill="rgba(0,255,136,0.15)" stroke="var(--green)" stroke-width="1"/>
+          <text fill="var(--green)" font-size="7" font-family="DM Mono" x="752" y="253">EXIT</text>
+        </g>
+        <g>
+          <rect x="388" y="30" width="24" height="20" fill="rgba(0,255,136,0.15)" stroke="var(--green)" stroke-width="1"/>
+          <text fill="var(--green)" font-size="7" font-family="DM Mono" x="390" y="43">EXIT</text>
+        </g>
+
+        <!-- Map legend -->
+        <g transform="translate(30, 8)">
+          <circle cx="6" cy="6" r="5" fill="rgba(0,200,255,0.9)"/>
+          <text fill="#3A6A80" font-size="9" font-family="DM Mono" x="15" y="10">Responder</text>
+          <circle cx="90" cy="6" r="5" fill="rgba(255,38,38,0.7)"/>
+          <text fill="#3A6A80" font-size="9" font-family="DM Mono" x="99" y="10">Incident</text>
+          <rect x="168" y="2" width="8" height="8" fill="rgba(0,200,255,0.08)" stroke="#00506A"/>
+          <text fill="#3A6A80" font-size="9" font-family="DM Mono" x="180" y="10">Active Unit</text>
+        </g>
+      </svg>
+
+      <!-- BROADCAST INPUT -->
+      <div class="broadcast-overlay">
+        <input class="broadcast-input" placeholder="Broadcast message to all staff on this floor..." id="broadcastInput"/>
+        <button class="broadcast-send" onclick="sendBroadcast()">SEND ALL</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-section" style="flex-shrink:0">
+      <div class="panel-title">Live Activity Feed <span id="feedCount">12</span></div>
+    </div>
+
+    <div class="feed-container" id="feedContainer">
+      <div class="feed-item">
+        <div class="feed-icon sos">🆘</div>
+        <div class="feed-body">
+          <div class="feed-header">
+            <span class="feed-who">Guest · Room 714</span>
+            <span class="feed-when">2 min ago</span>
+          </div>
+          <div class="feed-msg">SOS triggered via in-room emergency button. Guest unresponsive.</div>
+          <span class="feed-tag tag-critical">Critical</span>
+        </div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-icon dispatch">🚑</div>
+        <div class="feed-body">
+          <div class="feed-header">
+            <span class="feed-who">System · Auto Dispatch</span>
+            <span class="feed-when">2 min ago</span>
+          </div>
+          <div class="feed-msg">Medic Unit 1 dispatched to Floor 7. ETA 90 seconds. EMS contacted.</div>
+          <span class="feed-tag tag-dispatch">Dispatch</span>
+        </div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-icon update">🔥</div>
+        <div class="feed-body">
+          <div class="feed-header">
+            <span class="feed-who">Fire Alarm System</span>
+            <span class="feed-when">5 min ago</span>
+          </div>
+          <div class="feed-msg">Smoke detector triggered in Floor 3 West Wing corridor. Manual investigation initiated.</div>
+          <span class="feed-tag tag-update">Auto Alert</span>
+        </div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-icon dispatch">👮</div>
+        <div class="feed-body">
+          <div class="feed-header">
+            <span class="feed-who">Sgt. K · Security</span>
+            <span class="feed-when">7 min ago</span>
+          </div>
+          <div class="feed-msg">Lobby disturbance contained. Suspect asked to leave premises. No injuries.</div>
+          <span class="feed-tag tag-update">Update</span>
+        </div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-icon resolved">✅</div>
+        <div class="feed-body">
+          <div class="feed-header">
+            <span class="feed-who">Medic Unit 2</span>
+            <span class="feed-when">28 min ago</span>
+          </div>
+          <div class="feed-msg">INC-0044 resolved. Guest at Pool Deck treated for heat exhaustion, transferred to rest area.</div>
+          <span class="feed-tag tag-resolved">Resolved</span>
+        </div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-icon sos">📞</div>
+        <div class="feed-body">
+          <div class="feed-header">
+            <span class="feed-who">Front Desk · Staff</span>
+            <span class="feed-when">34 min ago</span>
+          </div>
+          <div class="feed-msg">Guest called in to report suspicious individual on Floor 6 hallway. Security alerted.</div>
+          <span class="feed-tag tag-update">Report</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <div class="panel-title" style="margin-bottom:8px">Quick Response</div>
+      <div class="qa-grid">
+        <button class="qa-btn sos-btn" onclick="openModal('sos')">
+          <span class="icon">🆘</span> TRIGGER SOS
+        </button>
+        <button class="qa-btn" onclick="openModal('report')">
+          <span class="icon">📋</span> Report
+        </button>
+        <button class="qa-btn" onclick="openModal('dispatch')">
+          <span class="icon">🚀</span> Dispatch
+        </button>
+        <button class="qa-btn" onclick="showToast('Evacuation protocol initiated for selected zone.','critical','🚪')">
+          <span class="icon">🚪</span> Evacuate
+        </button>
+        <button class="qa-btn" onclick="showToast('All external emergency services have been notified.','info','📡')">
+          <span class="icon">📡</span> EMS Alert
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST STACK -->
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- ============ MODALS ============ -->
+
+<!-- SOS Modal -->
+<div class="modal-backdrop" id="modal-sos">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🆘 EMERGENCY SOS</div>
+      <button class="modal-close" onclick="closeModal('sos')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(255,38,38,0.08);border:1px solid rgba(255,38,38,0.3);padding:16px;margin-bottom:20px;text-align:center">
+        <div style="font-family:Orbitron,monospace;font-size:28px;color:var(--red);font-weight:900;letter-spacing:0.1em;animation:blink 0.8s infinite">⚠ CRITICAL ALERT</div>
+        <div style="font-size:12px;color:var(--text);margin-top:6px">INC-0047 · Medical Emergency · Floor 7 · Room 714</div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Current Status</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span style="background:rgba(255,140,0,0.15);color:var(--amber);border:1px solid rgba(255,140,0,0.4);padding:5px 12px;font-size:11px;letter-spacing:0.1em">🚑 EMS EN ROUTE · 4 MIN</span>
+          <span style="background:rgba(0,200,255,0.1);color:var(--blue);border:1px solid rgba(0,200,255,0.3);padding:5px 12px;font-size:11px;letter-spacing:0.1em">🧑‍⚕️ MEDIC UNIT 1 ON SCENE</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Incident Notes</label>
+        <textarea class="form-textarea" placeholder="Add real-time updates or notes for responding units..."></textarea>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Escalate To</label>
+          <select class="form-select">
+            <option>City EMS (Already Notified)</option>
+            <option>Police — Metro</option>
+            <option>Fire Department</option>
+            <option>Hotel Manager</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Action</label>
+          <select class="form-select">
+            <option>Dispatch Additional Unit</option>
+            <option>Evacuate Floor</option>
+            <option>Request Police</option>
+            <option>Notify Next of Kin</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('sos')">Close</button>
+      <button class="btn-primary btn" onclick="doAction('sos')">ESCALATE & DISPATCH</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report Incident Modal -->
+<div class="modal-backdrop" id="modal-report">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📋 REPORT NEW INCIDENT</div>
+      <button class="modal-close" onclick="closeModal('report')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Incident Type</label>
+          <select class="form-select">
+            <option>Medical Emergency</option>
+            <option>Fire / Smoke</option>
+            <option>Security Threat</option>
+            <option>Flood / Water Damage</option>
+            <option>Power Outage</option>
+            <option>Guest Altercation</option>
+            <option>Structural Damage</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Severity</label>
+          <select class="form-select">
+            <option>Critical</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Floor</label>
+          <select class="form-select">
+            <option>Floor 1 — Lobby</option>
+            <option>Floor 2 — Ballroom</option>
+            <option>Floor 3</option>
+            <option>Floor 4</option>
+            <option>Floor 5</option>
+            <option>Floor 6</option>
+            <option>Floor 7</option>
+            <option>Floor 8</option>
+            <option>Floor 9 — Exec</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Zone / Room</label>
+          <input class="form-input" type="text" placeholder="e.g. Room 412, Pool Deck"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" placeholder="Describe the incident in detail..."></textarea>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Reported By</label>
+          <input class="form-input" type="text" placeholder="Name or badge ID"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">People Involved</label>
+          <input class="form-input" type="number" placeholder="Estimated count" min="1"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Auto-Dispatch Nearest Unit?</label>
+        <select class="form-select">
+          <option>Yes — Dispatch immediately</option>
+          <option>No — Manual coordination</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('report')">Cancel</button>
+      <button class="btn-primary btn" onclick="doAction('report')">CREATE INCIDENT</button>
+    </div>
+  </div>
+</div>
+
+<!-- Broadcast Modal -->
+<div class="modal-backdrop" id="modal-broadcast">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📢 BROADCAST MESSAGE</div>
+      <button class="modal-close" onclick="closeModal('broadcast')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Recipients</label>
+        <select class="form-select">
+          <option>All Staff — All Floors</option>
+          <option>Floor 7 Staff Only</option>
+          <option>Security Team Only</option>
+          <option>Medical Staff Only</option>
+          <option>Management Only</option>
+          <option>All External First Responders</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Channel</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox" checked/> In-App Push</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox" checked/> Radio</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox"/> SMS</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox"/> PA System</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox"/> Digital Signage</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Priority</label>
+        <select class="form-select">
+          <option>🔴 Emergency — Override all channels</option>
+          <option>🟠 Urgent</option>
+          <option>🟡 Important</option>
+          <option>⚪ Informational</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Message</label>
+        <textarea class="form-textarea" style="min-height:120px" placeholder="Type your emergency broadcast message..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('broadcast')">Cancel</button>
+      <button class="btn-primary btn" onclick="doAction('broadcast')">SEND BROADCAST</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dispatch Modal -->
+<div class="modal-backdrop" id="modal-dispatch">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🚀 DISPATCH UNIT</div>
+      <button class="modal-close" onclick="closeModal('dispatch')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Assign To Incident</label>
+        <select class="form-select">
+          <option>INC-0047 — Medical Emergency · Room 714</option>
+          <option>INC-0046 — Fire Alarm · Floor 3</option>
+          <option>INC-0045 — Security · Lobby</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Select Unit</label>
+        <select class="form-select">
+          <option>🏥 Medic Unit 2 — Standby (Station B)</option>
+          <option>👮 Security Officer L — Floor 4</option>
+          <option>🚒 Fire Team Beta — Standby</option>
+          <option>🧑‍⚕️ Paramedic K — Off Floor 1</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Priority Override</label>
+        <select class="form-select">
+          <option>Standard Route</option>
+          <option>Emergency — Clear Elevator</option>
+          <option>Stairway Only — Elevator Offline</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Special Instructions</label>
+        <textarea class="form-textarea" placeholder="Provide specific instructions for the dispatched unit..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('dispatch')">Cancel</button>
+      <button class="btn-primary btn" onclick="doAction('dispatch')">DISPATCH NOW</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lockdown Modal -->
+<div class="modal-backdrop" id="modal-lockdown">
+  <div class="modal">
+    <div class="modal-header" style="background:rgba(255,38,38,0.1);border-bottom-color:rgba(255,38,38,0.3)">
+      <div class="modal-title" style="color:var(--red)">🔒 INITIATE LOCKDOWN</div>
+      <button class="modal-close" onclick="closeModal('lockdown')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(255,38,38,0.08);border:1px solid rgba(255,38,38,0.25);padding:14px;margin-bottom:20px;font-size:12px;color:var(--amber);line-height:1.6">
+        ⚠ WARNING: Initiating a lockdown will restrict all access points, trigger PA announcements, notify all security personnel and management, and alert local law enforcement. This action is logged and requires authorization.
+      </div>
+      <div class="form-row">
+        <label class="form-label">Lockdown Scope</label>
+        <select class="form-select">
+          <option>Full Venue Lockdown</option>
+          <option>Floor 1 — Lobby & Entrance Only</option>
+          <option>Specific Zone / Wing</option>
+          <option>External Perimeter Only</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Reason</label>
+        <select class="form-select">
+          <option>Security Threat</option>
+          <option>Active Aggressor</option>
+          <option>Police Request</option>
+          <option>Hazardous Material</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Authorization Code</label>
+        <input class="form-input" type="password" placeholder="Enter 6-digit authorization code"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('lockdown')">Cancel</button>
+      <button class="btn-primary btn" style="background:#8B0000;border-color:#8B0000" onclick="doAction('lockdown')">CONFIRM LOCKDOWN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Evacuate Modal -->
+<div class="modal-backdrop" id="modal-evacuate">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🚪 EVACUATE ZONE</div>
+      <button class="modal-close" onclick="closeModal('evacuate')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Zone to Evacuate</label>
+        <select class="form-select">
+          <option>Floor 3 — West Wing (Current Alert)</option>
+          <option>Full Floor 3</option>
+          <option>Floors 3–5</option>
+          <option>All Guest Floors</option>
+          <option>Full Building</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Evacuation Route</label>
+        <select class="form-select">
+          <option>Auto — Safest route by AI</option>
+          <option>North Stairway → Parking Level</option>
+          <option>South Stairway → Main Exit</option>
+          <option>Emergency Roof Exit</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Announcement Channels</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox" checked/> PA System</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox" checked/> Digital Signage</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox" checked/> In-Room TVs</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer"><input type="checkbox"/> SMS to Guests</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('evacuate')">Cancel</button>
+      <button class="btn-primary btn" onclick="doAction('evacuate')">INITIATE EVACUATION</button>
+    </div>
+  </div>
+</div>
+
+<!-- Incident Detail Modal -->
+<div class="modal-backdrop" id="modal-incident_detail">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📍 INC-0047 — MEDICAL EMERGENCY</div>
+      <button class="modal-close" onclick="closeModal('incident_detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div style="background:var(--panel);border:1px solid var(--border);padding:12px">
+          <div style="font-size:9px;color:var(--text-dim);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px">Incident Info</div>
+          <div style="font-size:12px;margin-bottom:4px">🚑 Medical Emergency</div>
+          <div style="font-size:11px;color:var(--text-dim)">Floor 7 · Room 714</div>
+          <div style="font-size:11px;color:var(--text-dim)">Reported: 02:14 ago</div>
+        </div>
+        <div style="background:rgba(255,38,38,0.06);border:1px solid rgba(255,38,38,0.25);padding:12px">
+          <div style="font-size:9px;color:var(--red);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px">Status</div>
+          <div style="font-size:12px;color:var(--red);font-family:Orbitron,monospace;font-weight:700">CRITICAL</div>
+          <div style="font-size:11px;color:var(--text-dim)">Active Response</div>
+          <div style="font-size:11px;color:var(--amber)">EMS ETA: 2 min</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Responding Units</label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--panel);padding:8px 12px;border:1px solid var(--border);font-size:11px">
+            <span>🧑‍⚕️ Medic Unit 1</span><span style="color:var(--green)">ON SCENE</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--panel);padding:8px 12px;border:1px solid var(--border);font-size:11px">
+            <span>🚑 City EMS</span><span style="color:var(--amber)">EN ROUTE · 2 MIN</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--panel);padding:8px 12px;border:1px solid var(--border);font-size:11px">
+            <span>👮 Security Sgt. K</span><span style="color:var(--blue)">SECURING FLOOR</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Add Update</label>
+        <textarea class="form-textarea" placeholder="Add situation update visible to all responding units..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('incident_detail')">Close</button>
+      <button class="btn" onclick="doAction('resolve');closeModal('incident_detail')" style="border-color:rgba(0,255,136,0.4);color:var(--green)">✓ MARK RESOLVED</button>
+      <button class="btn-primary btn" onclick="doAction('escalate_detail')">ESCALATE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-GB',{hour12:false});
+  }
+  updateClock(); setInterval(updateClock,1000);
+
+  // Modal management
+  function openModal(id) {
+    document.getElementById('modal-'+id).classList.add('open');
+  }
+  function closeModal(id) {
+    document.getElementById('modal-'+id).classList.remove('open');
+  }
+  document.querySelectorAll('.modal-backdrop').forEach(m => {
+    m.addEventListener('click', e => { if(e.target === m) m.classList.remove('open'); });
+  });
+
+  // Toast notifications
+  let toastId = 0;
+  function showToast(msg, type='info', icon='ℹ') {
+    const stack = document.getElementById('toastStack');
+    const id = ++toastId;
+    const titles = { critical:'Critical Alert', info:'System Update', success:'Action Completed' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon">${icon}</div>
+      <div class="toast-content">
+        <div class="toast-title">${titles[type]||'Notification'}</div>
+        <div class="toast-msg">${msg}</div>
+      </div>
+    `;
+    stack.appendChild(toast);
+    setTimeout(() => toast.remove(), 4500);
+  }
+
+  // Action handlers
+  function doAction(type) {
+    const msgs = {
+      sos: ['Unit dispatched and EMS contacted. All responders notified.', 'success', '🚀'],
+      report: ['New incident created and logged. Auto-dispatch initiated.', 'success', '📋'],
+      broadcast: ['Broadcast sent to all selected recipients.', 'success', '📢'],
+      dispatch: ['Unit successfully dispatched to incident location.', 'success', '🚑'],
+      lockdown: ['LOCKDOWN INITIATED. All access points secured.', 'critical', '🔒'],
+      evacuate: ['Evacuation initiated. PA system and signage activated.', 'critical', '🚪'],
+      resolve: ['Incident marked as resolved and archived.', 'success', '✅'],
+      escalate_detail: ['Incident escalated to senior management and external services.', 'critical', '⬆'],
+    };
+    const [m,t,i] = msgs[type]||['Action executed.','info','✓'];
+    showToast(m,t,i);
+    const modalMap = {sos:'sos',report:'report',broadcast:'broadcast',dispatch:'dispatch',lockdown:'lockdown',evacuate:'evacuate'};
+    if(modalMap[type]) closeModal(modalMap[type]);
+
+    // Update feed if report
+    if(type==='report') addFeedItem();
+  }
+
+  // Select incident card
+  function selectIncident(idx) {
+    document.querySelectorAll('.incident-card').forEach((c,i) => {
+      c.classList.toggle('active-selected', i===idx);
+    });
+  }
+
+  // Broadcast from map overlay
+  function sendBroadcast() {
+    const val = document.getElementById('broadcastInput').value.trim();
+    if(!val) { showToast('Please enter a message before sending.','info','⚠'); return; }
+    showToast(`Broadcast sent: "${val.slice(0,50)}${val.length>50?'...':''}"`, 'success', '📢');
+    document.getElementById('broadcastInput').value='';
+    addFeedItem(`You broadcast: "${val.slice(0,60)}"`, 'update', '📢', 'Staff · Broadcast');
+  }
+
+  // Add feed item
+  function addFeedItem(msg, type='update', icon='📋', who='System') {
+    const container = document.getElementById('feedContainer');
+    const icons = {update:'update',sos:'sos',dispatch:'dispatch',resolved:'resolved'};
+    const tags = {update:'tag-update Update',sos:'tag-critical Critical',dispatch:'tag-dispatch Dispatch',resolved:'tag-resolved Resolved'};
+    const [tagClass,tagLabel] = (tags[type]||'tag-update Update').split(' ');
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+    item.innerHTML = `
+      <div class="feed-icon ${icons[type]||'update'}">${icon}</div>
+      <div class="feed-body">
+        <div class="feed-header">
+          <span class="feed-who">${who}</span>
+          <span class="feed-when">just now</span>
+        </div>
+        <div class="feed-msg">${msg||'New incident reported and logged in the system.'}</div>
+        <span class="feed-tag ${tagClass}">${tagLabel}</span>
+      </div>`;
+    container.insertBefore(item, container.firstChild);
+    const count = document.getElementById('feedCount');
+    count.textContent = parseInt(count.textContent)+1;
+  }
+
+  // Simulate live updates
+  const liveUpdates = [
+    [12000, ()=> showToast('EMS Unit arriving at Floor 7 lobby. Medic Unit 1 confirming.','critical','🚑')],
+    [22000, ()=> addFeedItem('EMS arrived at Floor 7. Patient stabilized. Transferring to stretcher.','dispatch','🚑','EMS Unit 4')],
+    [35000, ()=> showToast('Fire Team Alpha on Floor 3. Smoke source identified as faulty sensor.','info','🔥')],
+    [42000, ()=> addFeedItem('Floor 3 false alarm confirmed. Fire Team clearing zone.','resolved','✅','Fire Team Alpha')],
+  ];
+  liveUpdates.forEach(([delay,fn]) => setTimeout(fn, delay));
+</script>
+</body>
+</html>
